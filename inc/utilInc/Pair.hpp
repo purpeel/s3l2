@@ -1,54 +1,75 @@
 #ifndef PAIR_H
 #define PAIR_H
 
-#include <concepts>
 #include <type_traits>
 #include "util.hpp"
-
-template <typename Base, typename Derived> 
-concept DerivedFrom = std::is_base_of_v<Base, Derived>;
 
 template <typename T1, typename T2>
 class Pair
 {
 public:
+    template <typename U1, typename U2> 
+    requires (std::constructible_from<T1,U1&&> && std::constructible_from<T2,U2&&>)
+    Pair( U1&& value1, U2&& value2 ) : _value1(std::forward(value1)), _value2(std::forward(value2)) {}
+    
+    template <typename U1, typename U2> 
+    requires (std::constructible_from<T1,U1 const&> && std::constructible_from<T2,U2 const&>)
+    Pair( const U1& value1, const U2& value2 ) : _value1(value1), _value2(value2) {}
+
     Pair() = default;
-
-    template <typename D1, typename D2> 
-    requires (DerivedFrom<T1,D1> && DerivedFrom<T2,D2>)
-    Pair( const D1& value1, const D2& value2 ) {
-        new(&_value1) D2( value1 );
-        new(&_value2) D2( value2 );
-    }
-
-    Pair( const Pair<T1,T2>& other ) : _value1( other._value1 ), _value2( other._value2 ) {}
-    Pair<T1,T2>& operator=( const Pair<T1,T2>& other ) {
-        if ( this != &other ) {
-            _value1 = other._value1;
-            _value2 = other._value2;
-        }
-        return *this;
-    }
-
-    Pair( Pair<T1,T2>&& other ) : _value1( std::move( other._value1 ) ), _value2( std::move( other._value2 ) ) {}
-    Pair<T1,T2>& operator=( Pair<T1,T2>&& other )  {
-        if ( this != &other ) {
-            _value1 = std::move( other._value1 );
-            _value2 = std::move( other._value2 );
-        }
-        return *this;
-    }
+    Pair( const Pair<T1,T2>& other ) = default;
+    Pair<T1,T2>& operator=( const Pair<T1,T2>& other ) = default;
+    Pair( Pair<T1,T2>&& other ) = default;
+    Pair<T1,T2>& operator=( Pair<T1,T2>&& other ) = default;
 
     ~Pair() = default;
-public:
-    T1& getT1() { return _value1; }
-    const T1& getT1() const { return _value1; }
+public: 
+    T1& first() noexcept { return _value1; }
+    const T1& first() const noexcept { return _value1; }
     
-    T2& getT2() { return _value2; }
-    const T2& getT2() const { return _value2; }
+    T2& second() noexcept { return _value2; }
+    const T2& second() const noexcept { return _value2; }
+    
+    void swap( Pair<T1,T2>& other ) {
+        using std::swap;
+        swap( _value1, other._value1 );
+        swap( _value2, other._value2 );
+    }
+public: // structured binding get()
+    template <size_t I> friend const auto& get() const& {
+        if constexpr (I == 1) return _value1;
+        else return _value2;
+    }
+    template <size_t I> friend auto& get() & {
+        if constexpr (I == 1) return _value1;
+        else return _value2;
+    }
+    template <size_t I> friend auto&& get() && {
+        if constexpr (I == 1) return std::move(_value1);
+        else return std::move(_value2);
+    }   //
+
+    friend bool operator==( const Pair<T1,T2>& lhs, const Pair<T1,T2>& rhs ) {
+        return lhs._value1 == rhs._value1 && lhs._value2 == rhs._value2;
+    }
+    friend bool operator!=( const Pair<T1,T2>& lhs, const Pair<T1,T2>& rhs ) {
+        return !(lhs == rhs);
+    }
 private:
     T1 _value1;
     T2 _value2;
 };
+
+namespace std {
+    template <class T1, class T2>
+    struct tuple_size<Pair<T1,T2>> : std::integral_constant<std::size_t, 2> {};
+
+    template <std::size_t I, class T1, class T2>
+    struct tuple_element<I, Pair<T1,T2>> {
+        static_assert(I < 2);
+        using type = std::conditional_t<I == 0, T1, T2>;
+    };
+}
+
 
 #endif // PAIR_H
