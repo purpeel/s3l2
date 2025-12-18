@@ -135,6 +135,18 @@ void ArraySequence<T>::swap( const int pos1, const int pos2 ) {
 }
 
 template <typename T>
+ArraySequence<T> ArraySequence<T>::subArray( const int startIndex, const int endIndex ) const {
+    if (startIndex < 0 || endIndex < 0 || endIndex < startIndex || startIndex > getSize()) {
+        throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
+    }
+    ArraySequence<T> res;
+    for ( size_t index = startIndex; index < endIndex; index++ ) {
+        res.append((*this)[index]);
+    }
+    return res;
+}
+
+template <typename T>
 Sequence<T>* ArraySequence<T>::getSubSequence( const int startIndex, const int endIndex ) const {
     try {
         return new ArraySequence<T>( this->array.subArray(startIndex, endIndex) );

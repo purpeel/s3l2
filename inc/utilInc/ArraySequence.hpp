@@ -33,6 +33,7 @@ public:
     void removeAt( const int pos ) override;
     void setAt( const T& value, const int pos ) override;
     void swap( const int pos1, const int pos2 ) override;
+    ArraySequence<T> subArray( const int startIndex, const int endIndex ) const;
     Sequence<T>* getSubSequence( const int startIndex, const int endIndex ) const override;
     Sequence<T>* concat( const Sequence<T>& other ) override;
     void map( const std::function<T(T)>& func );

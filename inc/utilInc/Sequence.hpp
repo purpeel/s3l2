@@ -1,6 +1,8 @@
 #ifndef SEQUENCE_H
 #define SEQUENCE_H
 
+#include "SharedPtr.hpp"
+
 template <typename T>
 class Sequence 
 {

@@ -24,7 +24,8 @@ public:
         INVALID_SIZE = 9,
         EMPTY_OPTION = 10,
         NULL_DEREFERENCE = 11,
-        NULL_DEPENDENT_JUMP = 12
+        NULL_DEPENDENT_JUMP = 12,
+        KEY_COLLISION = 13
     };
 public:
     explicit Exception( std::exception& ex ) : ex(ex) {
@@ -80,6 +81,9 @@ public:
             break;
         case ErrorCode::NULL_DEPENDENT_JUMP:
             this->message = "Error. Attempt of using pointer arithmetic using null-pointer.";
+            break;
+        case ErrorCode::KEY_COLLISION:
+            this->message = "Error. Added key already exists.";
             break;
         }
     }
