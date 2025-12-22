@@ -36,18 +36,14 @@ public:
         swap( _value2, other._value2 );
     }
 public: // structured binding get()
-    template <size_t I> friend const auto& get() const& {
+    template <size_t I> const auto& get() const {
         if constexpr (I == 1) return _value1;
         else return _value2;
     }
-    template <size_t I> friend auto& get() & {
+    template <size_t I> auto& get() {
         if constexpr (I == 1) return _value1;
         else return _value2;
     }
-    template <size_t I> friend auto&& get() && {
-        if constexpr (I == 1) return std::move(_value1);
-        else return std::move(_value2);
-    }   //
 
     friend bool operator==( const Pair<T1,T2>& lhs, const Pair<T1,T2>& rhs ) {
         return lhs._value1 == rhs._value1 && lhs._value2 == rhs._value2;
@@ -60,16 +56,13 @@ private:
     T2 _value2;
 };
 
-namespace std {
-    template <class T1, class T2>
-    struct tuple_size<Pair<T1,T2>> : std::integral_constant<std::size_t, 2> {};
+template <typename T1, typename T2>
+struct std::tuple_size<Pair<T1,T2>> : std::integral_constant<std::size_t, 2> {};
 
-    template <std::size_t I, class T1, class T2>
-    struct tuple_element<I, Pair<T1,T2>> {
-        static_assert(I < 2);
-        using type = std::conditional_t<I == 0, T1, T2>;
-    };
-}
+template <typename T1, typename T2>
+struct std::tuple_element<0, Pair<T1,T2>> { using type = T1; };
+template <typename T1, typename T2>
+struct std::tuple_element<1, Pair<T1,T2>> { using type = T2; };
 
 
 #endif // PAIR_H

@@ -122,15 +122,17 @@ void DynamicArray<T>::insertAt( const T& value, const size_t pos ) {
     if ( pos > this->size ) {
         throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
     }
-    int sizeDiff = 1;
-    try {
+    if (pos == 0) {
+        prepend(value);
+    } else if (pos == this->getSize()) {
+        append(value);
+    } else {
+        int sizeDiff = 1;
         this->extend( sizeDiff );
         for ( size_t index = this->size; index >= pos; index-- ) {
             *(data + index) = *(data + index - 1);
         }
         (*this)[pos] = value;
-    } catch ( std::bad_alloc &ex ) {
-        throw Exception(ex);
     }
 }
 

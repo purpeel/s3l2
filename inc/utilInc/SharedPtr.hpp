@@ -67,8 +67,7 @@ private:
     void hookSharedToThis( T2* ptr );
     static void manageControlChange( T *& ptr, RefCount *& controlBlock );
 public:
-    SharedPtr() requires(!std::is_abstract_v<T>) : _ptr(nullptr) , _controlBlock(nullptr) { hookSharedToThis(_ptr); } 
-    SharedPtr() requires(std::is_abstract_v<T>) : _ptr(nullptr) , _controlBlock(nullptr) {} 
+    SharedPtr() : _ptr(nullptr) , _controlBlock( nullptr ) { hookSharedToThis(_ptr); }
 
     SharedPtr( UniquePtr<T>&& other, RefCount* count ) : _ptr(other.release()), _controlBlock( count ) { hookSharedToThis(_ptr); }
     SharedPtr( UniquePtr<T>&& other ) : _ptr(other.release()), _controlBlock( new RefCount(1, 0)) { hookSharedToThis(_ptr); }

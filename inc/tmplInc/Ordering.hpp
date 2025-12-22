@@ -9,6 +9,4 @@ concept COrdered = requires( K arg1, K arg2 ) {
     { arg1 == arg2 } -> std::convertible_to<bool>;
 };
 
-using attrT = int32_t;
-
 #endif // BTREE_DETAILS_H

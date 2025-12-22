@@ -85,6 +85,9 @@ public:
         case ErrorCode::KEY_COLLISION:
             this->message = "Error. Added key already exists.";
             break;
+        case ErrorCode::UNKNOWN_ERROR:
+            this->message = "Unknown error.";
+            break;
         }
     }
     explicit Exception( const char* message ) {

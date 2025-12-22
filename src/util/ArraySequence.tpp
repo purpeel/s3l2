@@ -2,7 +2,7 @@ template <typename T>
 ArraySequence<T>::ArraySequence() : array() {}
 
 template <typename T>
-ArraySequence<T>::ArraySequence( const int capacity ) : array(capacity) {}
+ArraySequence<T>::ArraySequence( const size_t capacity ) : array(capacity) {}
 
 template <typename T>
 ArraySequence<T>::ArraySequence( const DynamicArray<T>& src ) : array(src) {}
@@ -99,7 +99,7 @@ void ArraySequence<T>::prepend( const T& value ) {
 }
 
 template <typename T>
-void ArraySequence<T>::insertAt( const T& value, const int pos ) {
+void ArraySequence<T>::insertAt( const T& value, const size_t pos ) {
     try {
         this->array.insertAt( value, pos );
     } catch ( Exception& ex ) {
@@ -108,7 +108,7 @@ void ArraySequence<T>::insertAt( const T& value, const int pos ) {
 }
 
 template <typename T>
-void ArraySequence<T>::removeAt( const int pos ) {
+void ArraySequence<T>::removeAt( const size_t pos ) {
     try {
         this->array.removeAt( pos );
     } catch ( Exception& ex ) {
@@ -117,7 +117,7 @@ void ArraySequence<T>::removeAt( const int pos ) {
 }
 
 template <typename T>
-void ArraySequence<T>::setAt( const T& value, const int pos ) {
+void ArraySequence<T>::setAt( const T& value, const size_t pos ) {
     try {
         this->array.setAt( value, pos );
     } catch ( Exception& ex ) {
@@ -126,7 +126,7 @@ void ArraySequence<T>::setAt( const T& value, const int pos ) {
 }
 
 template <typename T>
-void ArraySequence<T>::swap( const int pos1, const int pos2 ) {
+void ArraySequence<T>::swap( const size_t pos1, const size_t pos2 ) {
     try {
         this->array.swap( pos1, pos2 );
     } catch ( Exception& ex ) {
@@ -135,8 +135,8 @@ void ArraySequence<T>::swap( const int pos1, const int pos2 ) {
 }
 
 template <typename T>
-ArraySequence<T> ArraySequence<T>::subArray( const int startIndex, const int endIndex ) const {
-    if (startIndex < 0 || endIndex < 0 || endIndex < startIndex || startIndex > getSize()) {
+ArraySequence<T> ArraySequence<T>::subArray( const size_t startIndex, const size_t endIndex ) const {
+    if (endIndex < startIndex || startIndex > getSize()) {
         throw Exception( Exception::ErrorCode::INDEX_OUT_OF_BOUNDS );
     }
     ArraySequence<T> res;
@@ -147,7 +147,7 @@ ArraySequence<T> ArraySequence<T>::subArray( const int startIndex, const int end
 }
 
 template <typename T>
-Sequence<T>* ArraySequence<T>::getSubSequence( const int startIndex, const int endIndex ) const {
+Sequence<T>* ArraySequence<T>::getSubSequence( const size_t startIndex, const size_t endIndex ) const {
     try {
         return new ArraySequence<T>( this->array.subArray(startIndex, endIndex) );
     } catch ( Exception& ex ) {
@@ -178,7 +178,7 @@ void ArraySequence<T>::where( const std::function<bool(T)>& func ) {
 }
 
 template <typename T>
-T& ArraySequence<T>::operator[]( const int pos ) {
+T& ArraySequence<T>::operator[]( const size_t pos ) {
     try {
         return this->array[pos];
     } catch ( Exception& ex ) {
@@ -187,7 +187,7 @@ T& ArraySequence<T>::operator[]( const int pos ) {
 }
 
 template <typename T>
-const T& ArraySequence<T>::operator[]( const int pos ) const {
+const T& ArraySequence<T>::operator[]( const size_t pos ) const {
     try {
         return this->array[pos];
     } catch ( Exception& ex ) {
@@ -224,7 +224,7 @@ Sequence<T>* ArraySequence<T>::prependImmutable( const T& value ) const {
 }
 
 template <typename T>
-Sequence<T>* ArraySequence<T>::insertAtImmutable( const T& value, const int pos ) const {
+Sequence<T>* ArraySequence<T>::insertAtImmutable( const T& value, const size_t pos ) const {
     try {
         return new ArraySequence<T>(*this->array.insertAtImmutable(value, pos));
     } catch ( Exception& ex ) {
@@ -233,7 +233,7 @@ Sequence<T>* ArraySequence<T>::insertAtImmutable( const T& value, const int pos 
 }
 
 template <typename T>
-Sequence<T>* ArraySequence<T>::removeAtImmutable( const int pos ) const {
+Sequence<T>* ArraySequence<T>::removeAtImmutable( const size_t pos ) const {
     try {
         return new ArraySequence<T>(*this->array.removeAtImmutable(pos));
     } catch ( Exception& ex ) {
@@ -242,7 +242,7 @@ Sequence<T>* ArraySequence<T>::removeAtImmutable( const int pos ) const {
 }
 
 template <typename T>
-Sequence<T>* ArraySequence<T>::setAtImmutable( const T& value, const int pos ) const {
+Sequence<T>* ArraySequence<T>::setAtImmutable( const T& value, const size_t pos ) const {
     try {
         return new ArraySequence<T>(*this->array.setAtImmutable(value, pos));
     } catch ( Exception& ex ) {
@@ -251,7 +251,7 @@ Sequence<T>* ArraySequence<T>::setAtImmutable( const T& value, const int pos ) c
 }
 
 template <typename T>
-Sequence<T>* ArraySequence<T>::swapImmutable( const int pos1, const int pos2 ) const {
+Sequence<T>* ArraySequence<T>::swapImmutable( const size_t pos1, const size_t pos2 ) const {
     try {
         return new ArraySequence<T>(*this->array.swapImmutable(pos1, pos2));
     } catch ( Exception& ex ) {
