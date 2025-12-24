@@ -4,10 +4,7 @@
 #include "SharedPtr.hpp"
 #include "ArraySequence.hpp"
 #include "Pair.hpp"
-#include "Option.hpp"
 #include "Ordering.hpp"
-#include <limits>
-
 // degree is a tree parameter defining the minimum and maximum amount of keys per node - [t-1; 2t-1] and children per node - [t; 2t]
 // in that case fanout which is max amount of children per node equals degree * 2.
 template <COrdered K, typename V, ssize_t Degree = 32>
@@ -21,9 +18,9 @@ private:
     struct Node {
         SharedPtr<Node> _parent;
 
-        using _keysT = std::conditional_t<_isSet, V, Pair<K,V>>;
-        ArraySequence<_keysT> _keys;
-        ArraySequence<SharedPtr<Node>> _children;  
+        using TKeys = std::conditional_t<_isSet, V, Pair<K,V>>;
+        ArraySequence<TKeys> _keys;
+        ArraySequence<SharedPtr<Node>> _children;
     public:
         Node() = default;
 
@@ -35,7 +32,7 @@ private:
         ~Node() = default;
     public:
         bool isLeaf() const noexcept { return _children.isEmpty(); }
-        bool isFull() const noexcept { return _children.getSize() == _fanout; };
+        bool isFull() const noexcept { return _children.getSize() == _fanout; }
         bool hasNoKeys()  const noexcept { return _keys.getSize() == 0; }
         bool hasMinKeys() const noexcept { return _keys.getSize() == _degree - 1; }
         bool canAddKey()  const noexcept { return _keys.getSize() < 2 * _degree - 1; }
@@ -48,15 +45,15 @@ private:
         }
         const K& minKey() const noexcept { 
             if constexpr (_isSet) { return _keys[0]; } 
-            else { _keys[0].first(); }
+            else { return _keys[0].first(); }
         }
         const K& midKey() const noexcept { 
             if constexpr (_isSet) { return _keys[keyCount() / 2]; } 
-            else { _keys[keyCount() / 2].first(); }
+            else { return _keys[keyCount() / 2].first(); }
         }
         const K& ithKey( const ssize_t& index ) const noexcept { 
             if constexpr (_isSet) { return _keys[index]; } 
-            else { _keys[index].first(); }
+            else { return _keys[index].first(); }
         }
         SharedPtr<Node>& kthChild( const K& key ) { return _children[BSearchInChildren(key)]; }
         SharedPtr<Node>& ithChild( const ssize_t& index ) { return _children[index]; }
@@ -86,15 +83,15 @@ private:
         ssize_t BSearchInChildren( const K& key ) const { // returns index in [0, Fanout - 1]
             if (hasNoKeys()) { return 0; }
             ssize_t l = 0; 
-            ssize_t r = childCount();
+            ssize_t r = keyCount();
             ssize_t m = (r + l) / 2;
             
             K L = minKey();
             K R = maxKey();
             K M = ithKey(m);
 
-            if (key < L) { return 0; } 
-            if (key > R) { return r - 1; } 
+            if (key < L) { return 0; }
+            if (R < key) { return r; } 
 
             while (l < r - 1) {
                 if (M < key) {
@@ -119,17 +116,18 @@ private:
     };
 
     SharedPtr<Node> _root;
+    ssize_t _size;
 private:
     struct constIterTraits {
         using iterator_category = std::bidirectional_iterator_tag;
-        using difference_type   = ssize_t;
+        using difference_type   = std::ptrdiff_t;
         using value_type = V;
         using pointer    = const V*;
         using reference  = const V&;
     };
     struct nonConstIterTraits {
         using iterator_category = std::bidirectional_iterator_tag;
-        using difference_type   = ssize_t;
+        using difference_type   = std::ptrdiff_t;
         using value_type = V;
         using pointer    = V*;
         using reference  = V&;
@@ -145,16 +143,35 @@ private:
         using reference  = typename IterTraits::reference; 
     public:
         BTreeIterator() = default;
-        BTreeIterator( SharedPtr<Node> node, const ssize_t index, bool atBegin = false, bool atEnd = false ) 
-        : _root(node), _observed(node), _indexInNode(index), _atBegin(atBegin), _atEnd(atEnd) {}
+        BTreeIterator( SharedPtr<Node> node, const ssize_t index, const int state ) 
+        : _root(node), _observed(node), _indexInNode(index) {
+            switch(state)
+            {
+            case -1:
+                setBegin();
+                break;
+            case 0:
+                setMid();
+                break;
+            case 1:
+                setEnd();
+                break;
+            default:
+                throw Exception( Exception::ErrorCode::INVALID_ITERATOR );
+            } 
+        }
 
         template <typename OtherTraits>
         BTreeIterator( const BTreeIterator<OtherTraits>& other ) 
         : _root( other._root ), _observed( other._observed ), _indexInNode( other._indexInNode )
-        , _atEnd( other._atEnd ), _atBegin( other._atBegin ) {}
+        , _state( other._state ) {}
     public:
         reference operator*() const noexcept {
-            return _observed->_keys[_indexInNode];
+            if constexpr(_isSet) {
+                return _observed->_keys[_indexInNode];
+            } else {
+                return _observed->_keys[_indexInNode].second();
+            }
         }
         pointer operator->() const noexcept {
             return std::addressof( _observed->_keys[_indexInNode]);
@@ -178,17 +195,41 @@ private:
         }
         
         friend bool operator==( const BTreeIterator& lhs, const BTreeIterator& rhs ) noexcept {
-            return lhs._observed == rhs._observed && lhs._indexInNode == rhs._indexInNode;
+            return    lhs._observed == rhs._observed 
+                && lhs._indexInNode == rhs._indexInNode 
+                &&       lhs._state == rhs._state;
         }
-        friend bool operator!=( const BTreeIterator& lhs, const BTreeIterator& rhs ) noexcept {
+        friend bool operator!=( const BTreeIterator& lhs, const BTreeIterator& rhs ) noexcept { 
             return !( lhs == rhs );
         }
-        bool isEnd() { return _atEnd; }
-        bool isBegin() { return _atBegin; }
-    public:
+        bool isEnd()   const noexcept { return static_cast<int>(_state) == static_cast<int>(iterState::atEnd); }
+        bool isBegin() const noexcept { return static_cast<int>(_state) == static_cast<int>(iterState::atBegin); }
+
+        static BTreeIterator begin( SharedPtr<Node> root ) noexcept {
+            BTreeIterator res( root, 0, -1 );
+            return res.goDownLeft().setBegin();
+        }
+        static BTreeIterator end( SharedPtr<Node> root ) noexcept {
+            BTreeIterator res( root, 0, 1 );
+            res.observed() = SharedPtr<Node>();
+            return res;
+        }
+    private:
+        BTreeIterator& setEnd() noexcept { 
+            _state = iterState::atEnd;
+            return *this;
+        }
+        BTreeIterator& setBegin() noexcept { 
+            _state = iterState::atBegin;
+            return *this;
+        }
+        BTreeIterator& setMid() noexcept { 
+            _state = iterState::other;
+            return *this;
+        }
         BTreeIterator& goDownLeft() noexcept {
             while (!_observed->isLeaf()) {
-                _observed = _observed->_children[0];
+                _observed = _observed->ithChild(0);
             }
             _indexInNode = 0;
             return *this;
@@ -196,7 +237,7 @@ private:
 
         BTreeIterator& goDownRight() noexcept {
             while (!_observed->isLeaf()) {
-                _observed = _observed->_children[_observed->childCount() - 1];
+                _observed = _observed->_observed->ithChild( _observed->keyCount() );
             }
             _indexInNode = _observed->keyCount() - 1;
             return *this;
@@ -210,22 +251,22 @@ private:
         }
 
         BTreeIterator& stepForward() noexcept {
-            if (_atEnd) { return *this; }
-            if (_atBegin) { _atBegin = false; }
+            if (isEnd()) { return *this; }
+            if (isBegin()) { setMid(); }
             if (_observed->isLeaf()) {
-                if (_indexInNode < _observed->keyCount()) {
+                if (_indexInNode < _observed->keyCount() - 1) {
                     _indexInNode++;
                 } else {
                     K maxKey = _observed->maxKey();
-                    _observed = _observed->_parent;
                     while (_observed->keyCount() == _observed->BSearchInChildren( maxKey ) && _observed->_parent) {
                         _observed = _observed->_parent;
                     }
-                    if (!_observed->_parent) { 
-                        _atEnd = true;
+                    if (!_observed->_parent || !_observed) {
+                        setEnd();
                         _observed = SharedPtr<Node>();
+                        _indexInNode = 0;
                     } else {
-                        _indexInNode = _observed->BSearchInChildren( maxKey );
+                        _indexInNode = _observed->BSearchInChildren( maxKey ) - 1;
                     }
                 }
             } else {
@@ -236,27 +277,28 @@ private:
         }
 
         BTreeIterator& stepBack() noexcept {
-            if (_atBegin) { return *this; }
-            if ( _atEnd ) { 
-                _atEnd = false;
+            if (isBegin()) { return *this; }
+            if (isEnd()) {
+                setMid();
                 _observed = _root;
                 return goDownRight(); 
             }
             if (_observed->isLeaf()) {
-                if (_indexInNode > 0) {
+                if (_indexInNode > 1) {
                     _indexInNode--;
                 } else {
                     auto initialLeaf = _observed;                    
-                    K minKey = _observed->minKey(); 
-                    _observed = _observed->_parent;
+                    K minKey = _observed->minKey();
                     while (_observed->BSearchInChildren( minKey ) == 0 && _observed->_parent) {
                         _observed = _observed->_parent;
                     }
-                    if (!_observed->_parent) { 
-                        _atBegin = true;
+                    if (!_observed->_parent || !_observed) { 
+                        setBegin();
                         _observed = initialLeaf;
+                        _indexInNode = 0;
+                    } else {
+                        _indexInNode = _observed->BSearchInChildren( minKey );
                     }
-                    _indexInNode = _observed->BSearchInChildren( minKey );
                 }
             } else {
                 _observed = _observed->_children[_indexInNode];
@@ -270,31 +312,30 @@ private:
         SharedPtr<Node> _root;
         SharedPtr<Node> _observed;
         ssize_t _indexInNode;
-        bool _atBegin;
-        bool _atEnd;
+        enum class iterState 
+        {
+            atBegin = -1,
+            other = 0,
+            atEnd = 1
+        };
+        iterState _state;
     };
 public:
-    using iterT = BTreeIterator<
+    using TIter = BTreeIterator<
             std::conditional_t<_isSet,constIterTraits,nonConstIterTraits>
                                 >;
-    using constIterT = BTreeIterator<constIterTraits>;
-    iterT begin() noexcept {
-        auto res = iterT( _root, 0, true, false );
-        res = res.goDownLeft();
-        return res;
+    using constTIter = BTreeIterator<constIterTraits>;
+    TIter begin() noexcept {
+        return TIter::begin(_root);
     }
-    constIterT begin() const noexcept {
-        auto res = constIterT( _root, 0, true, false );
-        res = res.goDownLeft();
-        return res;
+    constTIter begin() const noexcept {
+        return constTIter::begin(_root);
     }
-    iterT end() noexcept {
-        auto res = iterT( _root, 0, false, true );
-        return res.goDownRight().stepForward();
+    TIter end() noexcept {
+        return TIter::end(_root);
     }
-    constIterT end() const noexcept {
-        auto res = constIterT( _root, 0, false, true );
-        return res.goDownRight().stepForward();
+    constTIter end() const noexcept {
+        return constTIter::end(_root);
     }
 public:
     BTree() {
@@ -308,19 +349,20 @@ public:
 
     ~BTree() = default;
 public:
-    iterT get( const K& key ) {
-        return get( _root, key );
+    template <bool isSet = _isSet> requires(!isSet)  
+    V& get( const K& key ) {
+        auto it = find(key);
+        return *it;
     }
-    iterT get( SharedPtr<Node> node, const K& key ) {
-        if ( node->hasKey(key) ) {
-            return iterT( node, node->BSearchInKeys(key) );
-        } else {
-            if (node->hasInChildren(key)) {
-                return get( node->kthChild(key), key );
-            } else {
-                return end();
-            }
-        }
+    const V& get( const K& key ) const {
+        auto it = find(key);
+        return *it;
+    }
+    TIter find( const K& key ) {
+        return find( _root, key );
+    }
+    constTIter find( const K& key ) const {
+        return find( _root, key );
     }
     template <bool isSet = _isSet> requires(isSet)  
     BTree& insert( const V& value ) {
@@ -338,13 +380,38 @@ public:
     bool isEmpty() const {
         return _root;
     }
-    const K& rightMostKey() {
+    ssize_t getSize() const {
+        return _size;
+    }
+    const K& rightMostKey() const {
         return rightMostKey(_root);
     }
-    const K& leftMostKey() {
+    const K& leftMostKey() const {
         return leftMostKey(_root);
     }
 private:
+    TIter find( SharedPtr<Node> node, const K& key ) {
+        if ( node->hasKey(key) ) {
+            return TIter( node, node->BSearchInKeys(key), 0 );
+        } else {
+            if (node->hasInChildren(key)) {
+                return find( node->kthChild(key), key );
+            } else {
+                return end();
+            }
+        }
+    }
+    constTIter find( SharedPtr<Node> node, const K& key ) const {
+        if ( node->hasKey(key) ) {
+            return TIter( node, node->BSearchInKeys(key), 0);
+        } else {
+            if (node->hasInChildren(key)) {
+                return find( node->kthChild(key), key );
+            } else {
+                return end();
+            }
+        }
+    }
     BTree& removeFromSubtree( SharedPtr<Node>& node, const K& key ) {
         if (node->isLeaf()) {
             return removeFromLeaf(node, key);
