@@ -36,7 +36,8 @@ public:
     ArraySequence<T> subArray( const size_t startIndex, const size_t endIndex ) const;
     Sequence<T>* getSubSequence( const size_t startIndex, const size_t endIndex ) const override;
     Sequence<T>* concat( const Sequence<T>& other ) override;
-    void map( const std::function<T(T)>& func );
+    template <typename T2>
+    void map( const std::function<T2(T&)>& func );
     void where( const std::function<bool(T)>& func );
 public:
     T& operator[]( const size_t pos ) override;

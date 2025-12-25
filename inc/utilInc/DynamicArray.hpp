@@ -48,7 +48,8 @@ public:
     DynamicArray<T>* mapImmutable( const std::function<T(T)>& func ) const;
     DynamicArray<T>* whereImmutable( const std::function<bool(T)>& func ) const;
 public:
-    void map( const std::function<T(T)>& func );
+    template <typename T2>
+    void map( const std::function<T2(T&)>& func );
     void where( const std::function<bool(T)>& func );
 public:
     const std::string print() const;

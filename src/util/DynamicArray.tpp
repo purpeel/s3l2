@@ -2,7 +2,7 @@ template <typename T>
 DynamicArray<T>::DynamicArray() {
     try {
         this->size = 0;
-        this->capacity = 2;
+        this->capacity = 3;
         this->allocBegin = new T[this->capacity];
         this->data = this->allocBegin + 1;
         this->allocEnd = this->allocBegin + this->capacity;
@@ -195,7 +195,7 @@ void DynamicArray<T>::extend( int sizeDiff ) {
         T* newAllocBegin = new T[newCapacity];
         T* newData = newAllocBegin + (newCapacity / 4 + 1);
         T* newAllocEnd = newAllocBegin + newCapacity;
-        for ( size_t index = 0; index < this->size; index++ ) {
+        for ( size_t index = 0; index < this->size - sizeDiff; index++ ) {
             newData[index] = this->data[index];
         }
         delete[] this->allocBegin;
@@ -299,8 +299,9 @@ size_t DynamicArray<T>::getCapacity() const {
     return this->capacity;
 }
 
-template<typename T>
-void DynamicArray<T>::map( const std::function<T(T)>& func ) {
+template <typename T>
+template <typename T2>
+void DynamicArray<T>::map( const std::function<T2(T&)>& func ) {
     for ( size_t index = 0; index < this->size; index++ ) {
         (*this)[index] = func((*this)[index]);
     }

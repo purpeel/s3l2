@@ -24,15 +24,15 @@ private:
     public:
         Node() = default;
 
-        Node( const Node& other ) = delete;
-        Node& operator=( const Node& other ) = delete;
+        Node( const Node& other ) = default;
+        Node& operator=( const Node& other ) = default;
         Node( Node&& other ) = delete;
         Node& operator=( Node&& other ) = delete;
 
         ~Node() = default;
     public:
         bool isLeaf() const noexcept { return _children.isEmpty(); }
-        bool isFull() const noexcept { return _children.getSize() == _fanout; }
+        bool isFull() const noexcept { return _keys.getSize() == 2 * _degree - 1; }
         bool hasNoKeys()  const noexcept { return _keys.getSize() == 0; }
         bool hasMinKeys() const noexcept { return _keys.getSize() == _degree - 1; }
         bool canAddKey()  const noexcept { return _keys.getSize() < 2 * _degree - 1; }
@@ -237,9 +237,14 @@ private:
 
         BTreeIterator& goDownRight() noexcept {
             while (!_observed->isLeaf()) {
-                _observed = _observed->_observed->ithChild( _observed->keyCount() );
+                _observed = _observed->ithChild( _observed->keyCount() );
             }
             _indexInNode = _observed->keyCount() - 1;
+
+            if (_indexInNode == 0 && _observed->_parent->BSearchInChildren( _observed->minKey() ) == 0) {
+                return setBegin();
+            }
+
             return *this;
         }
 
@@ -258,19 +263,25 @@ private:
                     _indexInNode++;
                 } else {
                     K maxKey = _observed->maxKey();
-                    while (_observed->keyCount() == _observed->BSearchInChildren( maxKey ) && _observed->_parent) {
-                        _observed = _observed->_parent;
-                    }
-                    if (!_observed->_parent || !_observed) {
-                        setEnd();
-                        _observed = SharedPtr<Node>();
-                        _indexInNode = 0;
+                    _observed = _observed->_parent;
+                    if (_observed) {
+                        while (_observed->keyCount() == _observed->BSearchInChildren( maxKey ) && _observed->_parent) {
+                            _observed = _observed->_parent;
+                        }
+                        if (_observed->BSearchInChildren( maxKey ) == _observed->keyCount()) {
+                            setEnd();
+                            _observed = SharedPtr<Node>();
+                            _indexInNode = 0;
+                        } else {
+                            _indexInNode = _observed->BSearchInChildren( maxKey );
+                        }
                     } else {
-                        _indexInNode = _observed->BSearchInChildren( maxKey ) - 1;
+                        setEnd();
+                        _indexInNode = 0;
                     }
                 }
             } else {
-                _observed = _observed->_children[_indexInNode];
+                _observed = _observed->ithChild(_indexInNode + 1);
                 return goDownLeft();
             }
             return *this;
@@ -284,24 +295,32 @@ private:
                 return goDownRight(); 
             }
             if (_observed->isLeaf()) {
-                if (_indexInNode > 1) {
+                if (_indexInNode > 0) {
                     _indexInNode--;
+                    if (_indexInNode == 0 && !_observed->_parent) { return setBegin(); }
                 } else {
-                    auto initialLeaf = _observed;                    
+                    auto initialLeaf = _observed;       
                     K minKey = _observed->minKey();
-                    while (_observed->BSearchInChildren( minKey ) == 0 && _observed->_parent) {
-                        _observed = _observed->_parent;
-                    }
-                    if (!_observed->_parent || !_observed) { 
+                    _observed = _observed->_parent;
+                    if (_observed) {
+                        while (_observed->BSearchInChildren( minKey ) == 0 && _observed->_parent) {
+                            _observed = _observed->_parent;
+                        }
+                        if (_observed->BSearchInChildren( minKey ) == 0) { 
+                            setBegin();
+                            _observed = initialLeaf;
+                            _indexInNode = 0;
+                        } else {
+                            _indexInNode = _observed->BSearchInChildren( minKey ) - 1;
+                        }
+                    } else {
                         setBegin();
                         _observed = initialLeaf;
                         _indexInNode = 0;
-                    } else {
-                        _indexInNode = _observed->BSearchInChildren( minKey );
                     }
                 }
             } else {
-                _observed = _observed->_children[_indexInNode];
+                _observed = _observed->ithChild(_indexInNode);
                 return goDownRight();
             }
             return *this;
@@ -590,21 +609,51 @@ private:
     }
     
     BTree& split( SharedPtr<Node>& node ) {
-        SharedPtr<Node> left, right;
+        auto left  = makeShared<Node>();
+        auto right = makeShared<Node>();
         if (!node->_parent) {
-            // node->_parent = makeShared<Node>();
+            node->_parent = makeShared<Node>();
+            node->_parent->_keys.append( node->midKey() );
+            
+            left->_parent    = node->_parent;
+            left->_keys      = node->_keys.subArray( 0, node->keyCount() / 2 );
+            right->_parent   = node->_parent;
+            right->_keys     = node->_keys.subArray( node->keyCount() / 2 + 1, node->keyCount() );
+            
+            if (!node->_children.isEmpty()) {
+                left->_children  = node->_children.subArray( 0, node->keyCount() / 2 + 1 );
+                left->_children.template map<SharedPtr<Node>>([&left]( SharedPtr<Node>& child ) -> SharedPtr<Node> { child->_parent = left;
+                                                                                                                     return child; } );
+                right->_children = node->_children.subArray( node->keyCount() / 2 + 1, node->keyCount() + 1);
+                right->_children.template map<SharedPtr<Node>>([&right]( SharedPtr<Node>& child ) -> SharedPtr<Node> { child->_parent = right;
+                                                                                                                       return child; } );
+            }           
+
+            node->_parent->_children.append(left);
+            node->_parent->_children.append(right);
+            auto temp = _root;
             _root = node->_parent;
+        } else {
+            ssize_t indexInParent = node->_parent->BSearchInChildren(node->midKey());
+            node->_parent->_keys.insertAt(node->midKey(), indexInParent);
+            
+            left->_parent    = node->_parent;
+            left->_keys      = node->_keys.subArray( 0, node->keyCount() / 2 );
+            right->_parent   = node->_parent;                            
+            right->_keys     = node->_keys.subArray( node->keyCount() / 2 + 1, node->keyCount() );
+
+            if (!node->_children.isEmpty()) {
+                left->_children  = node->_children.subArray( 0, node->keyCount() / 2 + 1 );
+                left->_children.template map<SharedPtr<Node>>([&left]( SharedPtr<Node>& child ) -> SharedPtr<Node> { child->_parent = left;
+                                                                                                                     return child; } );
+                right->_children = node->_children.subArray( node->keyCount() / 2 + 1, node->keyCount() + 1);
+                right->_children.template map<SharedPtr<Node>>([&right]( SharedPtr<Node>& child ) -> SharedPtr<Node> { child->_parent = right;
+                                                                                                                       return child; } );
+            }   
+
+            node->_parent->_children[indexInParent] = left;
+            node->_parent->_children.insertAt(right, indexInParent + 1);
         }
-
-        auto& parent = node->_parent;
-        left->_parent = right->_parent = parent;
-        left->_keys = node->_keys.subArray(0, node->keyCount()/2);
-        right->_keys = node->_keys.subArray(node->keyCount()/2 + 1, node->keyCount());
-
-        auto indexInParent = parent->BSearchInChildren(node->midKey());
-        parent->_keys.insertAt(node->midKey(), indexInParent);
-        parent->_children[indexInParent] = left;
-        parent->_children.insertAt(right, indexInParent + 1); 
         return *this;
     }
 
@@ -613,21 +662,27 @@ private:
             if (root->hasKey(pair.first())) {
                 throw Exception( Exception::ErrorCode::KEY_COLLISION );
             } else {
-                if constexpr (_isSet) {
-                    root->_keys.insertAt(pair.first(), root->BSearchInChildren(pair.first()));
+                if (!root->isFull()) {
+                    if constexpr (_isSet) {
+                        root->_keys.insertAt(pair.first(), root->BSearchInChildren(pair.first()));
+                    } else {
+                        root->_keys.insertAt(    pair    , root->BSearchInChildren(pair.first()));
+                    }
                 } else {
-                    root->_keys.insertAt(pair, root->BSearchInChildren(pair.first()));
+                    return split(root).insertInSubtree(
+                               root->kthChild( pair.first() ), pair
+                                                       );
                 }
             }
             return *this;
         }
         if (root->isFull()) {
             return split(root).insertInSubtree(
-                root->ithChild( root->BSearchInChildren(pair.first()) ), pair
+                root->kthChild( pair.first() ), pair
                                                );
         } else {
             return insertInSubtree(
-                root->ithChild( root->BSearchInChildren(pair.first()) ), pair
+                root->kthChild( pair.first()), pair
                                    );
         }
     }

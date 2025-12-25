@@ -20,7 +20,7 @@ void SharedPtr<T>::manageControlChange( T *& ptr, RefCount *& controlBlock ) {
         if (noHard) { 
             delete ptr; 
             ptr = nullptr;
-            if (noWeak) { 
+            if (noWeak) {
                 delete controlBlock;
                 controlBlock = nullptr;
             }
@@ -53,7 +53,9 @@ SharedPtr<T>& SharedPtr<T>::operator=( const SharedPtr<T>& other ) {
         manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
-        _controlBlock->increaseHardRefs();
+        if (_controlBlock) {
+            _controlBlock->increaseHardRefs();
+        }
     }
     return *this;
 }

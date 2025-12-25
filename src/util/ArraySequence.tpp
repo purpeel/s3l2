@@ -168,8 +168,9 @@ Sequence<T>* ArraySequence<T>::concat( const Sequence<T>& other ) {
 }
 
 template <typename T>
-void ArraySequence<T>::map( const std::function<T(T)>& func ) {
-    this->array.map(func);
+template <typename T2>
+void ArraySequence<T>::map( const std::function<T2(T&)>& func ) {
+    this->array.template map<T2>(func);
 }
 
 template <typename T>
