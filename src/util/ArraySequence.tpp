@@ -168,9 +168,8 @@ Sequence<T>* ArraySequence<T>::concat( const Sequence<T>& other ) {
 }
 
 template <typename T>
-template <typename T2>
-void ArraySequence<T>::map( const std::function<T2(T&)>& func ) {
-    this->array.template map<T2>(func);
+void ArraySequence<T>::map( const std::function<T(T&)>& func ) {
+    this->array.template map(func);
 }
 
 template <typename T>
@@ -281,15 +280,6 @@ Sequence<T>* ArraySequence<T>::mapImmutable( const std::function<T(T)>& func ) c
 template <typename T>
 Sequence<T>* ArraySequence<T>::whereImmutable( const std::function<bool(T)>& func ) const {
     return new ArraySequence<T>(*this->array.whereImmutable(func));
-}
-
-template <typename T>
-const std::string ArraySequence<T>::print() const {
-    try {
-        return this->array.print();
-    } catch ( Exception& ex ) {
-        throw Exception(ex);
-    }
 }
 
 template <typename T>

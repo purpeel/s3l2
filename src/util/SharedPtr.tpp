@@ -42,8 +42,6 @@ SharedPtr<T>::SharedPtr( const SharedPtr<T>& other ) : _ptr( other._ptr ) {
     _controlBlock = other._controlBlock;
     if (_controlBlock) {
         _controlBlock->increaseHardRefs();
-    } else {
-        _controlBlock = new RefCount(1, 0);
     }
 }
 
@@ -89,12 +87,11 @@ SharedPtr<T>::SharedPtr( const WeakPtr<T>& other ) : _ptr( other._ptr ) {
 
 template <typename T>
 SharedPtr<T>& SharedPtr<T>::operator=( const WeakPtr<T>& other ) {
-    if (this != &other) {
-        manageControlChange( _ptr, _controlBlock );
-        _ptr = other._ptr;
-        _controlBlock = other._controlBlock;
-        _controlBlock->increaseHardRefs();
-    }
+    manageControlChange( _ptr, _controlBlock );
+    _ptr = other._ptr;
+    _controlBlock = other._controlBlock;
+    _controlBlock->increaseHardRefs();
+    
     return *this;
 }
 
@@ -126,7 +123,8 @@ SharedPtr<T>::~SharedPtr() {
 template <typename T>
 template <typename T2> requires (std::is_base_of_v<T,T2>)
 SharedPtr<T>& SharedPtr<T>::operator=( UniquePtr<T2>&& other ) {
-    _ptr = other.release;
+    manageControlChange( _ptr, _controlBlock );
+    _ptr = other.release();
     _controlBlock = new RefCount(1, 0);
     hookSharedToThis(_ptr);
 

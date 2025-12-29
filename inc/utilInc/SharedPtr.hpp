@@ -40,16 +40,20 @@ class SharedPtr
 private:
     SharedPtr( T* ptr ) : _ptr( ptr ), _controlBlock( new RefCount(1, 0) ) { hookSharedToThis(ptr); }
     SharedPtr( T* ptr, RefCount* count ) : _ptr( ptr ), _controlBlock( count ) {
-        _controlBlock->increaseHardRefs();
-        hookSharedToThis(ptr);
+        if (_controlBlock) {
+            _controlBlock->increaseHardRefs();
+            hookSharedToThis(ptr);
+        }
     }
 
     template<typename T2> requires (std::is_base_of_v<T,T2>)
     SharedPtr( T2* ptr ) : _ptr( ptr ), _controlBlock( new RefCount(1, 0) ) { hookSharedToThis(_ptr); }
     template<typename T2> requires (std::is_base_of_v<T,T2>)
     SharedPtr( T2* ptr, RefCount* count ) : _ptr( ptr ), _controlBlock( count ) {
-        _controlBlock->increaseHardRefs();
-        hookSharedToThis(ptr);
+        if (_controlBlock) {
+            _controlBlock->increaseHardRefs();
+            hookSharedToThis(ptr);
+        }
     }
     
     friend class EnableSharedFromThis<T>;

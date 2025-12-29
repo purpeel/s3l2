@@ -11,11 +11,11 @@ public:
     DynamicArray();
     DynamicArray( const size_t capacity );
 
-    DynamicArray( const DynamicArray<T>& src );
-    DynamicArray<T>& operator=( const DynamicArray<T>& src );
+    DynamicArray( const DynamicArray<T>& other );
+    DynamicArray<T>& operator=( const DynamicArray<T>& other );
     
-    DynamicArray( DynamicArray<T>&& src);
-    DynamicArray<T>& operator=( DynamicArray<T>&& src );
+    DynamicArray( DynamicArray<T>&& other);
+    DynamicArray<T>& operator=( DynamicArray<T>&& other );
     
     virtual ~DynamicArray();
     virtual void clear();
@@ -48,18 +48,16 @@ public:
     DynamicArray<T>* mapImmutable( const std::function<T(T)>& func ) const;
     DynamicArray<T>* whereImmutable( const std::function<bool(T)>& func ) const;
 public:
-    template <typename T2>
-    void map( const std::function<T2(T&)>& func );
+    void map( const std::function<T(T&)>& func );
     void where( const std::function<bool(T)>& func );
-public:
-    const std::string print() const;
 private:
     size_t getCapacity() const;
-    T* allocBegin;
-    T* data;
-    T* allocEnd;
-    size_t size;
-    size_t capacity;
+    T* _allocBegin;
+    T* _data;
+    T* _allocEnd;
+    size_t _size;
+    size_t _capacity;
+    size_t _offset;
 };
 
 #include "DynamicArray.tpp"

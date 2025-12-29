@@ -10,7 +10,7 @@ template <class T>
 class WeakPtr 
 {
 public: 
-    WeakPtr() : _ptr( nullptr ), _controlBlock( new RefCount(0, 1) ) {}
+    WeakPtr() : _ptr( nullptr ), _controlBlock( nullptr ) {}
 
     WeakPtr( const WeakPtr<T>& other );
     WeakPtr& operator=( const WeakPtr<T>& other );

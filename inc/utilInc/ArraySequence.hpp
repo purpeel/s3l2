@@ -36,8 +36,7 @@ public:
     ArraySequence<T> subArray( const size_t startIndex, const size_t endIndex ) const;
     Sequence<T>* getSubSequence( const size_t startIndex, const size_t endIndex ) const override;
     Sequence<T>* concat( const Sequence<T>& other ) override;
-    template <typename T2>
-    void map( const std::function<T2(T&)>& func );
+    void map( const std::function<T(T&)>& func );
     void where( const std::function<bool(T)>& func );
 public:
     T& operator[]( const size_t pos ) override;
@@ -55,8 +54,6 @@ public:
     Sequence<T>* concatImmutable( const Sequence<T>& other ) const override;
     Sequence<T>* mapImmutable( const std::function<T(T)>& func ) const;
     Sequence<T>* whereImmutable( const std::function<bool(T)>& func ) const;
-public:
-    const std::string print() const override;
 private:
     DynamicArray<T> array;
 };

@@ -28,8 +28,6 @@ public:
 public:
     virtual bool isEmpty() const = 0;
     virtual size_t getSize() const = 0;
-public: 
-    virtual const std::string print() const = 0;
 public: // immutable functions
     virtual Sequence<T>* appendImmutable( const T& value ) const = 0;
     virtual Sequence<T>* prependImmutable( const T& value ) const = 0;

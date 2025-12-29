@@ -9,6 +9,22 @@ include_directories(inc/tmplInc inc/utilInc src/tmpl src/util)
 add_executable(lab2 main.cpp)
 
 target_compile_options(lab2 PRIVATE
-    $<$<CONFIG:debug>:-g -O0 -Wall -Wextra -Werror>
-    $<$<CONFIG:release>:-O3 -DNDEBUG -Wall -Wextra -Werror>
+    $<$<CONFIG:Debug>:
+        -g
+        -O0
+        -Wall -Wextra -Werror
+        # -fsanitize=address,undefined
+        # -fno-omit-frame-pointer
+    >
+    $<$<CONFIG:Release>:
+        -O3
+        -DNDEBUG
+        -Wall -Wextra -Werror
+    >
 )
+
+# target_link_options(lab2 PRIVATE
+#     $<$<CONFIG:Debug>:
+#         -fsanitize=address,undefined
+#     >
+# )

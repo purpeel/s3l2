@@ -1,7 +1,7 @@
 template <typename T>
 WeakPtr<T>::WeakPtr( const WeakPtr<T>& other ) : _ptr(other._ptr) { 
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseWeakRefs(); 
+    if (_controlBlock) { _controlBlock->increaseWeakRefs(); }
 }
 
 template <typename T>
@@ -12,14 +12,14 @@ WeakPtr<T>& WeakPtr<T>::operator=( const WeakPtr<T>& other ) {
     }
     _ptr = other._ptr;
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseWeakRefs();
+    if (_controlBlock) { _controlBlock->increaseWeakRefs(); }
     return *this;
 }
 
 template <typename T>
 WeakPtr<T>::WeakPtr( const SharedPtr<T>& other ) : _ptr(other._ptr) {
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseWeakRefs();
+    if (_controlBlock) { _controlBlock->increaseWeakRefs(); }
 }
 
 template <typename T>
@@ -30,7 +30,7 @@ WeakPtr<T>& WeakPtr<T>::operator=( const SharedPtr<T>& other ) {
     }
     _ptr = other._ptr;
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseWeakRefs();
+    if (_controlBlock) { _controlBlock->increaseWeakRefs(); }
     return *this;
 }
 
@@ -38,7 +38,7 @@ template <typename T>
 template<typename T2> requires (std::is_base_of_v<T,T2>)
 WeakPtr<T>::WeakPtr( const WeakPtr<T2>& other ) : _ptr(other._ptr) { 
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseWeakRefs(); 
+    if (_controlBlock) { _controlBlock->increaseWeakRefs(); }
 }
 
 template <typename T>
@@ -50,7 +50,7 @@ WeakPtr<T>& WeakPtr<T>::operator=( const WeakPtr<T2>& other ) {
     }
     _ptr = other._ptr;
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseWeakRefs();
+    if (_controlBlock) { _controlBlock->increaseWeakRefs(); }
     return *this;
 }
 
@@ -58,7 +58,7 @@ template <typename T>
 template<typename T2> requires (std::is_base_of_v<T,T2>)
 WeakPtr<T>::WeakPtr( const SharedPtr<T2>& other ) : _ptr(other._ptr) {
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseWeakRefs();
+    if (_controlBlock) { _controlBlock->increaseWeakRefs(); }
 }
 
 template <typename T>
@@ -70,7 +70,7 @@ WeakPtr<T>& WeakPtr<T>::operator=( const SharedPtr<T2>& other ) {
     }
     _ptr = other._ptr;
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseWeakRefs();
+    if (_controlBlock) { _controlBlock->increaseWeakRefs(); }
     return *this;
 }
 
@@ -112,7 +112,7 @@ void WeakPtr<T>::swap( WeakPtr<T>& other ) noexcept {
 
 template <typename T>
 WeakPtr<T>::operator bool() const noexcept {
-    return _ptr;
+    return _ptr != nullptr;
 }
 
 template <typename T>
