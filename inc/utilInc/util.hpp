@@ -26,7 +26,8 @@ public:
         NULL_DEREFERENCE = 11,
         NULL_DEPENDENT_JUMP = 12,
         KEY_COLLISION = 13,
-        INVALID_ITERATOR = 14
+        INVALID_ITERATOR = 14,
+        ABSENT_KEY = 15
     };
 public:
     explicit Exception( std::exception& ex ) : ex(ex) {
@@ -88,6 +89,9 @@ public:
             break;
         case ErrorCode::INVALID_ITERATOR:
             this->message = "Error. Unable to create iterator with provided input.";
+            break;
+        case ErrorCode::ABSENT_KEY:
+            this->message = "Error. Element with requested key is absent in the tree.";
             break;
         case ErrorCode::UNKNOWN_ERROR:
             this->message = "Unknown error.";

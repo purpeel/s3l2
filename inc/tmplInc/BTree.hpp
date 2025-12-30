@@ -111,8 +111,12 @@ private:
             if (isLeaf()) {
                 return hasKey(key);
             } else {
-                auto childToCheck = kthChild(key);
-                return childToCheck->hasInChildren(key);
+                if (!hasKey()) {
+                    auto childToCheck = kthChild(key);
+                    return childToCheck->hasInChildren(key);
+                } else {
+                    return true;
+                }
             }
         }
     };
@@ -349,7 +353,7 @@ public:
     TIter begin() noexcept {
         return TIter::begin(_root);
     }
-    constTIter begin() const noexcept {
+    constTIter begin() const noexcept { //TODO ifEmpty() -> return end();
         return constTIter::begin(_root);
     }
     TIter end() noexcept {
@@ -373,11 +377,13 @@ public:
     template <bool isSet = _isSet> requires(!isSet)  
     V& get( const K& key ) {
         auto it = find(key);
-        return *it;
+        if (it != end()) { return *it; } 
+        else { throw Exception( Exception::ErrorCode::ABSENT_KEY ); }
     }
     const V& get( const K& key ) const {
         auto it = find(key);
-        return *it;
+        if (it != end()) { return *it; } 
+        else { throw Exception( Exception::ErrorCode::ABSENT_KEY ); }
     }
     TIter find( const K& key ) {
         return find( _root, key );
@@ -426,6 +432,7 @@ private:
         if ( node->hasKey(key) ) {
             return TIter( node, node->BSearchInKeys(key), 0);
         } else {
+            if (node->isLeaf()) { return end(); }
             if (node->hasInChildren(key)) {
                 return find( node->kthChild(key), key );
             } else {
@@ -449,22 +456,21 @@ private:
                 return *this;
             } else {
                 if (node->hasMinKeys()) {
-                    ssize_t indexInParent = parent->BSearchInChildren(key);
-                    if (indexInParent > 0 && indexInParent < parent->keyCount()) {
-                        auto& left   = parent->ithChild(indexInParent - 1);
-                        auto& right  = parent->ithChild(indexInParent + 1);
-                        node->_keys.removeAt(node->BSearchInKeys(key));
+                    ssize_t index = parent->BSearchInChildren(key);
+                    node->_keys.removeAt(node->BSearchInKeys(key));
+
+                    if (index > 0 && index < parent->keyCount()) {
+                        auto& left   = parent->ithChild(index - 1);
+                        auto& right  = parent->ithChild(index + 1);
                         if (left->hasMinKeys() && right->hasMinKeys()) { return merge( left, node ); } 
                         else if (!left->hasMinKeys())  { return  rotateLeft( node ); } 
                         else                           { return rotateRight( node ); }
-                    } else if (indexInParent == 0) {
-                        auto& right  = parent->ithChild(indexInParent + 1);
-                        node->_keys.removeAt(node->BSearchInKeys(key));
+                    } else if (index == 0) {
+                        auto& right  = parent->ithChild(index + 1);
                         if (right->hasMinKeys()) { return merge( node, right ); } 
                         else                     { return rotateRight( node ); }
                     } else {
-                        auto& left  = parent->ithChild(indexInParent - 1);
-                        node->_keys.removeAt(node->BSearchInKeys(key));
+                        auto& left  = parent->ithChild(index - 1);
                         if (left->hasMinKeys()) { return merge( left, node ); } 
                         else                    { return rotateLeft( node ); }
                     }
@@ -490,7 +496,7 @@ private:
                     if (left->hasMinKeys() && right->hasMinKeys()) {
                         return merge(left, child)
                               .removeFromSubtree(
-                        node->ithChild( node->BSearchInChildren(key) ), key
+                            node->kthChild(key), key
                                                  );
                     } else if (!right->hasMinKeys()) { 
                         return rotateRight(child)
@@ -509,7 +515,7 @@ private:
                         bool isRoot = !node->parent(); // if two last children of a root are merged, they become a new root
                         return merge(child, right)
                               .removeFromSubtree(
-                    (isRoot ? _root : node->ithChild( node->BSearchInChildren(key) ) ), key
+                    (isRoot ? _root : node->kthChild(key) ), key
                                                  );
                     } else {
                         return rotateRight(child)
@@ -523,7 +529,7 @@ private:
                         bool isRoot = !node->parent();
                         return merge(left, child)
                               .removeFromSubtree(
-                    (isRoot ? _root : node->ithChild( node->BSearchInChildren(key) ) ), key
+                    (isRoot ? _root : node->kthChild(key) ), key
                                                  );
                     } else {
                         return rotateLeft(child)
@@ -561,11 +567,11 @@ private:
 
     BTree& rotateLeft( SharedPtr<Node>& node ) {
         auto parent = node->parent().lock();
-        ssize_t indexInParent = parent->BSearchInChildren(node->minKey()) - 1;
+        ssize_t index = parent->BSearchInChildren(node->minKey()) - 1;
         
-        auto& leftSibling = parent->ithChild(indexInParent);
-        node->_keys.prepend( parent->ithKey(indexInParent) );
-        parent->_keys.setAt( leftSibling->maxKey(), indexInParent );
+        auto& leftSibling = parent->ithChild(index);
+        node->_keys.prepend( parent->ithKey(index) );
+        parent->_keys.setAt( leftSibling->maxKey(), index );
 
         if (!node->isLeaf()) {
             node->_children.prepend( leftSibling->ithChild(leftSibling->childCount() - 1) );
@@ -578,11 +584,11 @@ private:
 
     BTree& rotateRight( SharedPtr<Node>& node ) {
         auto parent = node->parent().lock();
-        ssize_t indexInParent = parent->BSearchInChildren(node->maxKey());
+        auto index = parent->BSearchInChildren(node->maxKey());
 
-        auto& rightSibling = parent->ithChild(indexInParent + 1);
-        node->_keys.append(parent->ithKey(indexInParent));
-        parent->_keys.setAt( rightSibling->minKey(), indexInParent);
+        auto& rightSibling = parent->ithChild(index + 1);
+        node->_keys.append(parent->ithKey(index));
+        parent->_keys.setAt( rightSibling->minKey(), index);
 
         if (!node->isLeaf()) {
             node->_children.append(rightSibling->ithChild(0));
@@ -622,7 +628,7 @@ private:
         auto newRoot = makeShared<Node>();
         newRoot->_keys.append( _root->midKey() );
 
-        auto left = makeShared<Node>();
+        auto left  = makeShared<Node>();
         auto right = makeShared<Node>();
 
         left->_keys  = _root->_keys.subArray( 0, _root->keyCount() / 2 );
@@ -633,10 +639,10 @@ private:
         if (!_root->isLeaf()) {
             left->_children  = _root->_children.subArray( 0, _root->keyCount() / 2 + 1 );
             left->_children.map([&left]( SharedPtr<Node>& child ) -> SharedPtr<Node> { child->parent() = left;
-                                                                                                                 return child; } );
+                                                                                       return child; } );
             right->_children = _root->_children.subArray( _root->keyCount() / 2 + 1, _root->keyCount() + 1 );
             right->_children.map([&right]( SharedPtr<Node>& child ) -> SharedPtr<Node> { child->parent() = right;
-                                                                                                                   return child; } );
+                                                                                         return child; } );
         }
         newRoot->_children.append(left);
         newRoot->_children.append(right);
@@ -660,10 +666,10 @@ private:
         if (!node->isLeaf()) {
             left->_children  = node->_children.subArray( 0, node->keyCount() / 2 + 1 );
             left->_children.map([&left]( SharedPtr<Node>& child ) -> SharedPtr<Node> { child->_parent = left;
-                                                                                                                 return child; } );
+                                                                                       return child; } );
             right->_children = node->_children.subArray( node->keyCount() / 2 + 1, node->keyCount() + 1);
             right->_children.map([&right]( SharedPtr<Node>& child ) -> SharedPtr<Node> { child->_parent = right;
-                                                                                                                   return child; } );
+                                                                                         return child; } );
         }
         parent->_children[indexInParent] = left;
         parent->_children.insertAt(right, indexInParent + 1);
@@ -681,7 +687,7 @@ private:
                         return splitRoot()
                               .insertInSubtree( _root->kthChild( pair.first() ), pair );
                     } else {
-                        if constexpr(_isSet) { root->_keys.insertAt( pair.first(), _root->BSearchInChildren(pair.first()) ); } 
+                        if constexpr(_isSet) { root->_keys.insertAt( pair.first(), root->BSearchInChildren(pair.first()) ); } 
                         else { root->_keys.insertAt( pair, _root->BSearchInChildren(pair.first()) ); }
                         return *this;
                     }
