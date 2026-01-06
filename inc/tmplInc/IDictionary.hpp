@@ -5,12 +5,12 @@
 #include "BTree.hpp"
 #include "BPlusTree.hpp"
 
-template <typename TContainer, typename K, typename V> 
+template <typename K, typename V, typename TContainer = BTree<K,V>>     
 requires CAssociative<TContainer,K,V>
 class IDictionary 
 {
 public:
-    IDictionary() = default;
+    IDictionary() : _container(), _capacity() {}
     IDictionary( const ssize_t capacity ) 
     : _container(), _capacity( capacity ) {}
 
@@ -35,6 +35,9 @@ public:
     void add( const K& key, const V& value ) {
         auto pair = Pair<K,V>( key, value );
         _container.insert(pair);
+    }
+    void remove( const K& key ) {
+        _container.remove(key);
     }
     bool contains( const K& key ) const {
         return _container.contains(key);

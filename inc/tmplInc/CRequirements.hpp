@@ -16,8 +16,8 @@ concept CAssociative =
         { container.contains(key) } -> std::convertible_to<bool>;
         { container.isEmpty() }  -> std::convertible_to<bool>;
         { container.getSize() }  -> std::convertible_to<ssize_t>;
-        { container.begin() } -> std::same_as<typename TContainer::TIter>;
-        { container.end() } -> std::same_as<typename TContainer::TIter>;
+        { container.begin() } -> std::same_as<typename TContainer::TIter>; // maybe delete
+        { container.end() } -> std::same_as<typename TContainer::TIter>;   // maybe delete
     };
 
 template <typename TContainer, typename K, typename V>

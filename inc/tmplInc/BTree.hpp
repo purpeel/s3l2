@@ -9,13 +9,12 @@
 // degree is a tree parameter defining the minimum and maximum amount of keys per node - [t-1; 2t-1] and children per node - [t; 2t]
 // in that case fanout which is max amount of children per node equals degree * 2.
 template <COrdered K, typename V, ssize_t Degree = 32>
-class BTree 
+class BTree
 {
 private:
     static constexpr bool _isSet = std::is_same_v<K,V>;
-    static constexpr ssize_t _fanout = Degree * 2;
-    static constexpr ssize_t _degree = Degree;
-
+    static const size_t _fanout = Degree * 2;
+    static const size_t _degree = Degree;
     struct Node {
         WeakPtr<Node> _parent;
 
@@ -56,6 +55,24 @@ private:
             if constexpr (_isSet) { return _keys[index]; } 
             else { return _keys[index].first(); }
         }
+
+        const TKeys& minContent() const noexcept {
+            if constexpr (_isSet) { return _keys[0]; }
+            else { return _keys[0]; }
+        }
+        const TKeys& maxContent() const noexcept {
+            if constexpr (_isSet) { return _keys[keyCount() - 1]; }
+            else { return _keys[keyCount() - 1]; }
+        }
+        const TKeys& midContent() const noexcept {
+            if constexpr (_isSet) { return _keys[keyCount()/2]; }
+            else { return _keys[keyCount()/2]; }
+        }
+        const TKeys& ithContent( const ssize_t& index ) const noexcept {
+            if constexpr (_isSet) { return _keys[index]; }
+            else { return _keys[index]; }
+        }
+
         WeakPtr<Node>& parent() { return _parent; }
         SharedPtr<Node>& kthChild( const K& key ) { return _children[BSearchInChildren(key)]; }
         SharedPtr<Node>& ithChild( const ssize_t& index ) { return _children[index]; }
@@ -111,7 +128,7 @@ private:
             if (isLeaf()) {
                 return hasKey(key);
             } else {
-                if (!hasKey()) {
+                if (!hasKey(key)) {
                     auto childToCheck = kthChild(key);
                     return childToCheck->hasInChildren(key);
                 } else {
@@ -124,6 +141,12 @@ private:
     SharedPtr<Node> _root;
     ssize_t _size;
 private:
+    enum class iterState 
+    {
+        atBegin = -1,
+        other = 0,
+        atEnd = 1
+    };
     struct constIterTraits {
         using iterator_category = std::bidirectional_iterator_tag;
         using difference_type   = std::ptrdiff_t;
@@ -337,13 +360,8 @@ private:
         SharedPtr<Node> _root;
         SharedPtr<Node> _observed;
         ssize_t _indexInNode;
-        enum class iterState 
-        {
-            atBegin = -1,
-            other = 0,
-            atEnd = 1
-        };
         iterState _state;
+        template<class> friend class BTreeIterator;
     };
 public:
     using TIter = BTreeIterator<
@@ -363,9 +381,7 @@ public:
         return constTIter::end(_root);
     }
 public:
-    BTree() {
-        _root = makeShared<Node>();
-    }
+    BTree() : _root( makeShared<Node>() ) {}
 
     BTree( const BTree& other ) = delete;
     BTree& operator=( const BTree& other ) = delete;
@@ -626,7 +642,7 @@ private:
 
     BTree& splitRoot() {
         auto newRoot = makeShared<Node>();
-        newRoot->_keys.append( _root->midKey() );
+        newRoot->_keys.append( _root->midContent() );
 
         auto left  = makeShared<Node>();
         auto right = makeShared<Node>();
@@ -653,7 +669,7 @@ private:
     BTree& split( SharedPtr<Node>& parent, const K& key ) {
         ssize_t indexInParent = parent->BSearchInChildren(key);
         auto& node = parent->kthChild(key);
-        parent->_keys.insertAt( node->midKey(), indexInParent );
+        parent->_keys.insertAt( node->midContent(), indexInParent );
 
         auto left  = makeShared<Node>();
         auto right = makeShared<Node>();

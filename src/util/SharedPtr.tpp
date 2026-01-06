@@ -134,12 +134,11 @@ SharedPtr<T>& SharedPtr<T>::operator=( UniquePtr<T2>&& other ) {
 template <typename T>
 template <typename T2> requires (std::is_base_of_v<T,T2>)
 SharedPtr<T>& SharedPtr<T>::operator=( const SharedPtr<T2>& other ) {
-    if (this != &other) {
-        manageControlChange( _ptr, _controlBlock );
-        _ptr = other._ptr;
-        _controlBlock = other._controlBlock;
-        _controlBlock->increaseHardRefs();
-    }
+    manageControlChange( _ptr, _controlBlock );
+    _ptr = other._ptr;
+    _controlBlock = other._controlBlock;
+    _controlBlock->increaseHardRefs();
+    
     return *this;
 }
 

@@ -8,14 +8,12 @@ template <typename T1, typename T2>
 class Pair
 {
 public:
-    template <typename U1, typename U2> 
-    requires (std::constructible_from<T1,U1&&> && std::constructible_from<T2,U2&&>)
-    Pair( U1&& value1, U2&& value2 ) : _value1(std::forward(value1)), _value2(std::forward(value2)) {}
-    
+    Pair( const T1& value1, const T2& value2 ) : _value1(value1), _value2(value2) {}
+
     template <typename U1, typename U2> 
     requires (std::constructible_from<T1,U1 const&> && std::constructible_from<T2,U2 const&>)
     Pair( const U1& value1, const U2& value2 ) : _value1(value1), _value2(value2) {}
-
+    
     Pair() = default;
     Pair( const Pair<T1,T2>& other ) = default;
     Pair<T1,T2>& operator=( const Pair<T1,T2>& other ) = default;

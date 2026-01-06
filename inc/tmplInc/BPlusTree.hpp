@@ -13,8 +13,8 @@ class BPlusTree
 {
 private:
     static constexpr bool _isSet = std::is_same_v<K,V>;
-    static constexpr ssize_t _fanout = Degree * 2;
-    static constexpr ssize_t _degree = Degree;
+    static const size_t _fanout = Degree * 2;
+    static const size_t _degree = Degree;
     struct Node 
     {
         WeakPtr<Node> _parent;
@@ -160,6 +160,12 @@ private:
     SharedPtr<Node> _root;
     ssize_t _size;
 private:
+    enum class iterState
+    {
+        atBegin = -1, 
+        other   = 0,
+        atEnd   = 1
+    };
     struct constIterTraits {
         using iterator_category = std::bidirectional_iterator_tag;
         using difference_type   = std::ptrdiff_t;
@@ -325,13 +331,8 @@ private:
         SharedPtr<Node> _root;
         SharedPtr<Node> _observed;
         ssize_t _indexInLeaf;
-        enum class iterState
-        {
-            atBegin = -1, 
-            other   = 0,
-            atEnd   = 1
-        };
         iterState _state;
+        template<class> friend class BPlusTreeIterator;
     };
 public:
     using TIter = BPlusTreeIterator<
@@ -351,9 +352,7 @@ public:
         return constTIter::end(_root);
     }
 public:
-    BPlusTree() {
-        _root = makeShared<Node>();
-    }
+    BPlusTree() : _root( makeShared<Node>() ) {}
 
     BPlusTree( const BPlusTree& other ) = delete;
     BPlusTree& operator=( const BPlusTree& other ) = delete;

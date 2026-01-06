@@ -27,7 +27,10 @@ public:
         NULL_DEPENDENT_JUMP = 12,
         KEY_COLLISION = 13,
         INVALID_ITERATOR = 14,
-        ABSENT_KEY = 15
+        ABSENT_KEY = 15,
+        ERROR_CREATING_FILE = 16,
+        RELATIVE_PHYSICAL_PATH = 17,
+        CYCLIC_MOVE = 18
     };
 public:
     explicit Exception( std::exception& ex ) : ex(ex) {
@@ -93,12 +96,21 @@ public:
         case ErrorCode::ABSENT_KEY:
             this->message = "Error. Element with requested key is absent in the tree.";
             break;
+        case ErrorCode::ERROR_CREATING_FILE:
+            this->message = "Error. Unable to create a file.";
+            break;
+        case ErrorCode::RELATIVE_PHYSICAL_PATH:
+            this->message = "Error. Physical path must be specified as absolute.";
+            break;
+        case ErrorCode::CYCLIC_MOVE:
+            this->message = "Error. Attempt of moving directory into itself.";
+            break;
         case ErrorCode::UNKNOWN_ERROR:
             this->message = "Unknown error.";
             break;
         }
     }
-    explicit Exception( const char* message ) {
+    explicit Exception( const std::string& message ) {
         this->message = message;
         this->ex = std::exception();
     }
