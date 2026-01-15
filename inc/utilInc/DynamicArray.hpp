@@ -31,6 +31,7 @@ public:
 private:
     void extend( const int sizeDiff );
     void shrink( const int sizeDiff );
+    void recenter();
 public:
     T& operator[]( const size_t pos );
     const T& operator[]( const size_t pos ) const;

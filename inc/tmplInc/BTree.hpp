@@ -15,10 +15,10 @@ private:
     static constexpr bool _isSet = std::is_same_v<K,V>;
     static const size_t _fanout = Degree * 2;
     static const size_t _degree = Degree;
+    using TKeys = std::conditional_t<_isSet, V, Pair<K,V>>;
     struct Node {
         WeakPtr<Node> _parent;
 
-        using TKeys = std::conditional_t<_isSet, V, Pair<K,V>>;
         ArraySequence<TKeys> _keys;
         ArraySequence<SharedPtr<Node>> _children;
     public:
@@ -57,20 +57,16 @@ private:
         }
 
         const TKeys& minContent() const noexcept {
-            if constexpr (_isSet) { return _keys[0]; }
-            else { return _keys[0]; }
+            return _keys[0];
         }
         const TKeys& maxContent() const noexcept {
-            if constexpr (_isSet) { return _keys[keyCount() - 1]; }
-            else { return _keys[keyCount() - 1]; }
+            return _keys[keyCount() - 1];
         }
         const TKeys& midContent() const noexcept {
-            if constexpr (_isSet) { return _keys[keyCount()/2]; }
-            else { return _keys[keyCount()/2]; }
+            return _keys[keyCount()/2];
         }
         const TKeys& ithContent( const ssize_t& index ) const noexcept {
-            if constexpr (_isSet) { return _keys[index]; }
-            else { return _keys[index]; }
+            return _keys[index];
         }
 
         WeakPtr<Node>& parent() { return _parent; }
@@ -195,14 +191,14 @@ private:
         : _root( other._root ), _observed( other._observed ), _indexInNode( other._indexInNode )
         , _state( other._state ) {}
     public:
-        reference operator*() const noexcept {
+        reference operator*() noexcept {
             if constexpr(_isSet) {
                 return _observed->_keys[_indexInNode];
             } else {
                 return _observed->_keys[_indexInNode].second();
             }
         }
-        pointer operator->() const noexcept {
+        pointer operator->() noexcept {
             return std::addressof( _observed->_keys[_indexInNode]);
         }
     
@@ -222,7 +218,7 @@ private:
             stepBack();
             return res;
         }
-        
+
         friend bool operator==( const BTreeIterator& lhs, const BTreeIterator& rhs ) noexcept {
             return    lhs._observed == rhs._observed 
                 && lhs._indexInNode == rhs._indexInNode 
@@ -369,10 +365,12 @@ public:
                                 >;
     using constTIter = BTreeIterator<constIterTraits>;
     TIter begin() noexcept {
-        return TIter::begin(_root);
+        if (isEmpty()) return end();
+        else return TIter::begin(_root);
     }
-    constTIter begin() const noexcept { //TODO ifEmpty() -> return end();
-        return constTIter::begin(_root);
+    constTIter begin() const noexcept {
+        if (isEmpty()) return end();
+        else return constTIter::begin(_root);
     }
     TIter end() noexcept {
         return TIter::end(_root);
@@ -381,7 +379,7 @@ public:
         return constTIter::end(_root);
     }
 public:
-    BTree() : _root( makeShared<Node>() ) {}
+    BTree() : _root( makeShared<Node>() ), _size(0) {}
 
     BTree( const BTree& other ) = delete;
     BTree& operator=( const BTree& other ) = delete;
@@ -421,16 +419,16 @@ public:
         return _root->hasInChildren( key );
     }
     bool isEmpty() const {
-        return _root;
+        return _size == 0;
     }
     ssize_t getSize() const {
         return _size;
     }
-    const K& rightMostKey() const {
-        return rightMostKey(_root);
+    const K& rightMostContent() const {
+        return rightMostContent(_root);
     }
-    const K& leftMostKey() const {
-        return leftMostKey(_root);
+    const K& leftMostContent() const {
+        return leftMostContent(_root);
     }
 private:
     TIter find( SharedPtr<Node> node, const K& key ) {
@@ -464,11 +462,12 @@ private:
         }
     }
 
-    BTree& removeFromLeaf( SharedPtr<Node> node, const K& key ) {
+    BTree& removeFromLeaf( SharedPtr<Node>& node, const K& key ) {
         auto parent = node->parent().lock();
         if (node->hasKey(key)) {
             if (!parent) {
                 node->_keys.removeAt(node->BSearchInKeys(key));
+                _size--;
                 return *this;
             } else {
                 if (node->hasMinKeys()) {
@@ -492,6 +491,7 @@ private:
                     }
                 } else {
                     node->_keys.removeAt( node->BSearchInKeys(key) );
+                    _size--;
                     return *this;
                 }
             }
@@ -566,17 +566,33 @@ private:
         (isRoot ? _root : node->ithChild( node->BSearchInChildren(key) ) ), key
                                          );
             } else if (!predecessor->hasMinKeys()) {
-                auto& maxKey = rightMostKey( predecessor );
-                node->_keys.setAt(maxKey, index);
-                return removeFromSubtree(
-                                predecessor, maxKey
-                                         );
+                if constexpr(!_isSet) {
+                    auto& maxKey = rightMostContent( predecessor );
+                    node->_keys.setAt(maxKey, index);
+                    return removeFromSubtree(
+                                    predecessor, maxKey.first()
+                                            );
+                } else {
+                    auto& maxKey = rightMostContent( predecessor );
+                    node->_keys.setAt(maxKey, index);
+                    return removeFromSubtree(
+                                    predecessor, maxKey
+                                            );
+                }
             } else {
-                auto& minKey = leftMostKey( successor );
-                node->_keys.setAt(minKey, index);
-                return removeFromSubtree(
-                                successor, minKey
-                                         );
+                if constexpr(!_isSet){
+                    auto& minKey = leftMostContent( successor );
+                    node->_keys.setAt(minKey, index);
+                    return removeFromSubtree(
+                                    successor, minKey.first()
+                                            );
+                } else {
+                    auto& minKey = leftMostContent( successor );
+                    node->_keys.setAt(minKey, index);
+                    return removeFromSubtree(
+                                    successor, minKey
+                                            );
+                }
             }
         }
     } // removeFromNode()
@@ -586,8 +602,8 @@ private:
         ssize_t index = parent->BSearchInChildren(node->minKey()) - 1;
         
         auto& leftSibling = parent->ithChild(index);
-        node->_keys.prepend( parent->ithKey(index) );
-        parent->_keys.setAt( leftSibling->maxKey(), index );
+        node->_keys.prepend( parent->ithContent(index) );
+        parent->_keys.setAt( leftSibling->maxContent(), index );
 
         if (!node->isLeaf()) {
             node->_children.prepend( leftSibling->ithChild(leftSibling->childCount() - 1) );
@@ -603,8 +619,8 @@ private:
         auto index = parent->BSearchInChildren(node->maxKey());
 
         auto& rightSibling = parent->ithChild(index + 1);
-        node->_keys.append(parent->ithKey(index));
-        parent->_keys.setAt( rightSibling->minKey(), index);
+        node->_keys.append(parent->ithContent(index));
+        parent->_keys.setAt( rightSibling->minContent(), index);
 
         if (!node->isLeaf()) {
             node->_children.append(rightSibling->ithChild(0));
@@ -614,11 +630,14 @@ private:
         rightSibling->_keys.removeAt(0);
         return *this;
     }    
-    
-    BTree& merge( SharedPtr<Node>& node1, SharedPtr<Node>& node2 ) {
+
+    BTree& merge( SharedPtr<Node>& node1Ref, SharedPtr<Node>& node2Ref ) {
+        SharedPtr<Node> node1 = node1Ref;
+        SharedPtr<Node> node2 = node2Ref;
+
         auto parent = node1->parent().lock();
         ssize_t sepIndex = parent->BSearchInChildren( node1->maxKey() );
-        K separator = parent->ithKey( sepIndex );
+        auto separator = parent->ithContent( sepIndex );
 
         node1->_keys.append(separator);
         node1->_keys.concat( node2->_keys );
@@ -633,10 +652,9 @@ private:
         parent->_children.removeAt(sepIndex + 1);
         
         if (!parent->parent() && parent->keyCount() == 0) {
-            node1->parent() = makeShared<Node>();
+            node1->parent() = WeakPtr<Node>();
             _root = node1;
-        }       
-
+        }
         return *this;
     }
 
@@ -703,6 +721,7 @@ private:
                         return splitRoot()
                               .insertInSubtree( _root->kthChild( pair.first() ), pair );
                     } else {
+                        _size++;
                         if constexpr(_isSet) { root->_keys.insertAt( pair.first(), root->BSearchInChildren(pair.first()) ); } 
                         else { root->_keys.insertAt( pair, _root->BSearchInChildren(pair.first()) ); }
                         return *this;
@@ -725,6 +744,7 @@ private:
                         return split( parent, pair.first())
                               .insertInSubtree( parent->kthChild(pair.first()), pair );
                     } else {
+                        _size++;
                         if constexpr(_isSet) { root->_keys.insertAt( pair.first(), root->BSearchInChildren(pair.first()) ); } 
                         else { root->_keys.insertAt( pair, root->BSearchInChildren(pair.first()) ); }
                         return *this;
@@ -741,18 +761,18 @@ private:
         }
     }
 
-    const K& rightMostKey( SharedPtr<Node> node ) {
+    const TKeys& rightMostContent( SharedPtr<Node> node ) {
         while (!node->isLeaf()) {
             node = node->ithChild( node->childCount() - 1 );
         }
-        return node->ithKey( node->keyCount() - 1 );
+        return node->ithContent( node->keyCount() - 1 );
     }
 
-    const K& leftMostKey( SharedPtr<Node> node ) {
+    const TKeys& leftMostContent( SharedPtr<Node> node ) {
         while (!node->isLeaf()) {
             node = node->ithChild( 0 );
         }
-        return node->ithKey( 0 );
+        return node->ithContent( 0 );
     }
 };
 

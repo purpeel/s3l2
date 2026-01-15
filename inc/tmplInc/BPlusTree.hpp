@@ -215,14 +215,14 @@ private:
         : _observed( other._observed ), _indexInLeaf( other._indexInLeaf )
         , _root( other._root ), _state( other._state ) {}
     public: 
-        reference operator*() const noexcept {
+        reference operator*() noexcept {
             if constexpr(_isSet) {
                 return _observed->_contents[_indexInLeaf];
             } else {
                 return _observed->_contents[_indexInLeaf].second();
             }
         }
-        pointer operator->() const noexcept {
+        pointer operator->() noexcept {
             return std::addressof(_observed->_contents[_indexInLeaf]);
         }
 
@@ -352,7 +352,7 @@ public:
         return constTIter::end(_root);
     }
 public:
-    BPlusTree() : _root( makeShared<Node>() ) {}
+    BPlusTree() : _root( makeShared<Node>() ), _size(0) {}
 
     BPlusTree( const BPlusTree& other ) = delete;
     BPlusTree& operator=( const BPlusTree& other ) = delete;
@@ -368,7 +368,7 @@ public:
         if (it != end()) { return *it; } 
         else { throw Exception( Exception::ErrorCode::ABSENT_KEY ); }
     }
-    const V& get( const V& key ) const {
+    const V& get( const K& key ) const {
         auto it = find(key);
         if (it != end()) { return *it; } 
         else { throw Exception( Exception::ErrorCode::ABSENT_KEY ); }
@@ -403,9 +403,9 @@ public:
         return _size;
     }
 private:
-    TIter find( SharedPtr<Node>& node, const K& key ) {
+    TIter find( SharedPtr<Node> node, const K& key ) {
         if (node->hasInKeys(key)) {
-            return TIter( node, node->BSearchInKeys(key), 0);
+            return TIter( node, node->BSearchInContents(key), 0);
         } else {
             if (node->isLeaf()) { return end(); }
             
@@ -417,9 +417,9 @@ private:
         }
     }
 
-    constTIter find( SharedPtr<Node>& node, const K& key ) const {
+    constTIter find( SharedPtr<Node> node, const K& key ) const {
         if (node->hasInKeys(key)) {
-            return constTIter( node, node->BSearchInKeys(key), 0);
+            return constTIter( node, node->BSearchInContents(key), 0);
         } else {
             if (node->isLeaf()) { return end(); }
             
@@ -442,6 +442,7 @@ private:
                         return splitRoot()
                               .insertInSubtree( _root->kthChild(pair.first()), pair );
                     } else {
+                        _size++;
                         if constexpr (_isSet) { root->_contents.insertAt( pair.first(), root->BSearchInChildren( pair.first() )); }
                         else { root->_contents.insertAt( pair, root->BSearchInChildren( pair.first() )); }
                         return *this;
@@ -464,6 +465,7 @@ private:
                         return split( parent, pair.first() )
                               .insertInSubtree( parent->kthChild( pair.first() ), pair );
                     } else {
+                        _size++;
                         if constexpr (_isSet) { root->_contents.insertAt( pair.first(), root->BSearchInChildren( pair.first() )); }
                         else { root->_contents.insertAt( pair, root->BSearchInChildren( pair.first() )); }
                         return *this;
@@ -543,10 +545,12 @@ private:
         return *this;
     }
 
-    BPlusTree& merge( SharedPtr<Node>& node1, SharedPtr<Node>& node2 ) {
+    BPlusTree& merge( SharedPtr<Node>& node1Ref, SharedPtr<Node>& node2Ref ) {
+        SharedPtr<Node> node1 = node1Ref;
+        SharedPtr<Node> node2 = node2Ref;
+        
         auto parent = node1->parent().lock();
         auto index = parent->BSearchInChildren( node1->maxKey() );
-
 
         if (node1->isLeaf()) {
             node1->_contents.concat( node2->_contents );
@@ -566,7 +570,7 @@ private:
         parent->_children.removeAt( index + 1 );
 
         if (!parent->parent() && parent->keyCount() == 0) {
-            node1->parent() = makeShared<Node>();
+            node1->parent() = WeakPtr<Node>();
             _root = node1;
         }
         return *this;
@@ -689,6 +693,7 @@ private:
     BPlusTree& removeFromLeaf( SharedPtr<Node>& leaf, const K& key ) {
         auto parent = leaf->parent().lock();
         if (leaf->hasInKeys(key)) {
+            _size--;
             if (!parent) {
                 leaf->_contents.removeAt( leaf->BSearchInContents(key) );
                 return *this;
@@ -700,7 +705,7 @@ private:
                     if (left && right) {
                         if (left->hasMinKeys() && leaf->hasMinKeys()) { return merge(left, leaf); }
                         else if (!left->hasMinKeys()) { return rotateLeft(leaf); }
-                        else                          { std::cout << "hehe" << std::endl; return rotateRight(leaf); }
+                        else                          { return rotateRight(leaf); }
                     } else if (left) {
                         if (left->hasMinKeys()) { return merge( left, leaf ); } 
                         else                    { return rotateLeft( leaf ); }

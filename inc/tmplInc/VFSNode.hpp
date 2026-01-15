@@ -43,17 +43,22 @@ struct VFSNode
 template <template<COrdered,class> class TContainer>
 struct Dir : VFSNode<TContainer>
 {
+    using Dict = IDictionary<std::string,NodeID,TContainer<std::string,NodeID>>;
+
     Dir( const NodeID id, const NodeID parent, const std::string& name )
     : VFSNode<TContainer>( id, parent, name ) {}
+
+    Dir( const NodeID id, const NodeID parent, const std::string& name, Dict& contents )
+    : VFSNode<TContainer>( id, parent, name ), _contents( std::move(contents) ) {}
 
     bool isDir() const override { return true; }
     NodeID child( const std::string& name ) const override { return _contents.get(name); }
     bool hasChild( const std::string& name ) const override { return _contents.contains(name); } 
-    virtual IDictionary<std::string,NodeID,TContainer<std::string,NodeID>>& contents() { return _contents; }
+    virtual Dict& contents() { return _contents; }
     
     ~Dir() = default;
 
-    IDictionary<std::string,NodeID,TContainer<std::string,NodeID>> _contents; 
+    Dict _contents; 
 };
 
 
@@ -61,16 +66,14 @@ template <template<COrdered,class> class TContainer>
 struct File : VFSNode<TContainer>
 { 
     File( const NodeID id, const NodeID parent, const std::string& name
-        , const std::string ext, const std::filesystem::path& path )
+        , const std::filesystem::path& path )
     : VFSNode<TContainer>( id, parent, name ) 
-    , _extension( ext ), _diskPath( path ) {}
+    , _diskPath( path ) {}
     
-    const std::string& ext() const override { return _extension; }   
     const std::filesystem::path& path() const override { return _diskPath; } 
 
     ~File() = default;
 
-    std::string _extension; 
     std::filesystem::path _diskPath;
 };
 

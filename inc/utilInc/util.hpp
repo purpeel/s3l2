@@ -30,7 +30,11 @@ public:
         ABSENT_KEY = 15,
         ERROR_CREATING_FILE = 16,
         RELATIVE_PHYSICAL_PATH = 17,
-        CYCLIC_MOVE = 18
+        CYCLIC_MOVE = 18, 
+        CONCAT_WITH_ABS_PATH = 19,
+        FORK_FAILURE = 20,
+        EXEC_FAILURE = 21,
+        WAITPID_FAILURE = 22
     };
 public:
     explicit Exception( std::exception& ex ) : ex(ex) {
@@ -105,6 +109,18 @@ public:
         case ErrorCode::CYCLIC_MOVE:
             this->message = "Error. Attempt of moving directory into itself.";
             break;
+        case ErrorCode::CONCAT_WITH_ABS_PATH:
+            this->message = "Error. Unable to perform concatenation with second argument being absolute path.";
+            break;
+        case ErrorCode::FORK_FAILURE:
+            this->message = "Error. fork() failed to create child process.";
+            break;
+        case ErrorCode::EXEC_FAILURE:
+            this->message = "Error. exec() failed.";
+            break;
+        case ErrorCode::WAITPID_FAILURE:
+            this->message = "Error. waitpid() failed.";
+            break;
         case ErrorCode::UNKNOWN_ERROR:
             this->message = "Unknown error.";
             break;
@@ -117,6 +133,24 @@ public:
 public: 
     const char* what() const noexcept override {
         return this->message.c_str();
+    }
+};
+
+class ExitSignal : public std::exception
+{
+private:
+    std::string message;
+public:
+    ExitSignal() {
+        message = "Received exit signal from user.";
+    }
+
+    explicit ExitSignal( const std::string& msg ) {
+        message = msg;
+    }
+public:
+    const char* what() const noexcept override {
+        return message.c_str();
     }
 };
 

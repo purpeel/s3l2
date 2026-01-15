@@ -90,7 +90,7 @@ SharedPtr<T>& SharedPtr<T>::operator=( const WeakPtr<T>& other ) {
     manageControlChange( _ptr, _controlBlock );
     _ptr = other._ptr;
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseHardRefs();
+    if (_controlBlock) _controlBlock->increaseHardRefs();
     
     return *this;
 }
@@ -137,7 +137,7 @@ SharedPtr<T>& SharedPtr<T>::operator=( const SharedPtr<T2>& other ) {
     manageControlChange( _ptr, _controlBlock );
     _ptr = other._ptr;
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseHardRefs();
+    if (_controlBlock) _controlBlock->increaseHardRefs();
     
     return *this;
 }
@@ -168,7 +168,7 @@ template <typename T>
 template <typename T2> requires (std::is_base_of_v<T,T2>)
 SharedPtr<T>::SharedPtr( const WeakPtr<T2>& other ) : _ptr(other._ptr) {
     _controlBlock = other._controlBlock;
-    _controlBlock->increaseHardRefs();
+    if (_controlBlock) _controlBlock->increaseHardRefs();
 }
 
 template <typename T>
@@ -178,7 +178,7 @@ SharedPtr<T>& SharedPtr<T>::operator=( const WeakPtr<T2>& other ) {
         manageControlChange( _ptr, _controlBlock );
         _ptr = other._ptr;
         _controlBlock = other._controlBlock;
-        _controlBlock->increaseHardRefs();
+        if (_controlBlock) _controlBlock->increaseHardRefs();
     }
     return *this;
 }

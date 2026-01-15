@@ -110,6 +110,7 @@ template <typename T>
 void DynamicArray<T>::prepend( const T& value ) {
     extend(1);
     _data--;
+    if (_data == _allocBegin) recenter();
     _data[0] = value;
 }
 
@@ -229,6 +230,21 @@ void DynamicArray<T>::shrink( const int sizeDiff ) {
         _data = newData;
         _allocEnd = newAllocEnd;      
     }
+}
+
+template <typename T>
+void DynamicArray<T>::recenter() {
+    _offset = _capacity / 4 + 1;
+    T* newAllocBegin = new T[_capacity + _offset];
+    T* newData = newAllocBegin + _offset;
+    T* newAllocEnd = newAllocBegin + (_capacity + _offset);
+    for ( size_t index = 0; index < _size; index++ ) {
+        newData[index] = _data[index];
+    }
+    delete[] _allocBegin;
+    _allocBegin = newAllocBegin;
+    _data = newData;
+    _allocEnd = newAllocEnd;    
 }
 
 template <typename T>
