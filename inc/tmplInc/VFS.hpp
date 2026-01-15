@@ -246,8 +246,7 @@ private:
                 , node->path().string(), (INT_PTR) inst) );
         } else return true;
     }
-  #endif
-
+  #else 
     bool tryOpen( const Node& node ) {
         auto p = node.path();
         const char* path = p.c_str();
@@ -296,6 +295,7 @@ private:
             return false;
         }
     }
+  #endif
 
     bool exists( const std::string& path ) const {
         auto npath = Path(path);
